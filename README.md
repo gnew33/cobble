@@ -14,7 +14,7 @@ cd cobble
 make
 ```
 
-The Makefile assumes that `~/.local/bin/` is in your `PATH`.
+The Makefile assumes that `~/.local/bin/` is in your `PATH`. If it is not, you can modify the `LOCAL` variable in the Makefile to a variable that is in your path, such as `/usr/local/bin`. Then run `sudo make`.
 
 ## Usage
 
