@@ -123,7 +123,7 @@ def main():
         usage="%(prog)s <model_path> [quant_type] [-n/--no-run] [kobold_args]"
     )
     parser.add_argument("model_path", help="the path to the model on Hugging Face, e.g. \"meta-llama/Meta-Llama-3-8B\"")
-    parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="(optional) the quantization type, e.g. \"Q4_K_M\"; can be any string. Default: Q5_K_M")
+    parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="(optional) the quantization type, can be any string. Default: Q5_K_M")
     parser.add_argument("-n", "--no-run", action="store_false", dest="run", help="do not run the model after downloading")
     parser.add_argument("kobold_args", nargs=argparse.REMAINDER, help="additional arguments to pass to KoboldCpp")
 
