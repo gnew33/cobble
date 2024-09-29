@@ -2,7 +2,9 @@
 
 A simple and easy way to query Hugging Face for a quant you are looking for, download it, and run it with [KoboldCpp](https://github.com/LostRuins/koboldcpp).
 
-Given a model path and quant type, `cobble` automatically finds and downloads a suitable quant, then loads it with KoboldCpp. If a KoboldCpp executable is not found, `cobble` will download the latest one.
+Given a model path and quant type, `cobble` automatically finds and downloads a suitable quant, then loads it with KoboldCpp.
+
+If a KoboldCpp executable is not found, `cobble` will download the latest one.
 
 Only Linux is supported, and currently only the CUDA version of KoboldCpp is supported.
 
