@@ -10,6 +10,13 @@ Only Linux is supported, and currently only the CUDA version of KoboldCpp is sup
 
 ## Installation
 
+1. Install the requirements:
+```
+requests
+beautifulsoup4
+tqdm
+```
+2.
 ```bash
 git clone https://github.com/gnew33/cobble
 cd cobble
