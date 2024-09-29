@@ -112,20 +112,17 @@ def download_file(url: str, file_path: str = None) -> str:
     return file_path
 
 def main():
-    class ArgumentParserShowHelp(argparse.ArgumentParser):
-        def error(self, message):
-            sys.stderr.write(f'error: {message}\n\n')
-            self.print_help()
-            sys.exit(2)
-
-    parser = ArgumentParserShowHelp(
+    parser = argparse.ArgumentParser(
         description="Download and optionally run a quantized model.",
-        usage="%(prog)s <model_path> [quant_type] [-n/--no-run] [kobold_args]"
     )
-    parser.add_argument("model_path", help="the path to the model on Hugging Face, e.g. \"meta-llama/Meta-Llama-3-8B\"")
-    parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="(optional) the quantization type, can be any string. Default: Q5_K_M")
-    parser.add_argument("-n", "--no-run", action="store_false", dest="run", help="do not run the model after downloading")
-    parser.add_argument("kobold_args", nargs=argparse.REMAINDER, help="additional arguments to pass to KoboldCpp")
+    parser.add_argument("model_path", help="(required) The path to the model on Hugging Face, e.g. \"meta-llama/Meta-Llama-3-8B\"")
+    parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="(optional) The quantization type, can be any string. Default: Q5_K_M")
+    parser.add_argument("-n", "--no-run", action="store_false", dest="run", help="Do not run the model after downloading")
+    parser.add_argument("kobold_args", nargs=argparse.REMAINDER, help="(optional) Additional arguments to pass to KoboldCpp")
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        exit(1)
 
     args = parser.parse_args()
 
@@ -147,9 +144,9 @@ def main():
 
         print(f"Using KoboldCpp at: {kobold_path}")
 
-        kobold_args = ' '.join(args.kobold_args)
+        kobold_args = ' '.join(args.kobold_args) if args.kobold_args else ''
         kobold_cmd = f"{kobold_path} --model {model_path} {kobold_args}"
-        print(kobold_cmd)
+        print(f"{kobold_cmd}")
 
         os.system(kobold_cmd)
 
