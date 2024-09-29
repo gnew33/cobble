@@ -18,19 +18,38 @@ The Makefile assumes that `~/.local/bin/` is in your `PATH`.
 
 ## Usage
 
-```bash
+```
 ~ $ cobble
-error: the following arguments are required: model_path
+error: the following arguments are required: model_path, kobold_args
 
-usage: cobble <model_path> [quant_type] [-r/--run]
+usage: cobble <model_path> [quant_type] [-n/--no-run] [kobold_args]
 
 Download and optionally run a quantized model.
 
 positional arguments:
   model_path    the path to the model on Hugging Face, e.g. "meta-llama/Meta-Llama-3-8B"
-  quant_type    the quantization type, e.g. "Q4_K_M"; can be any string
+  quant_type    (optional) the quantization type, can be any string. Default: Q5_K_M
+  kobold_args   additional arguments to pass to KoboldCpp
 
 options:
   -h, --help    show this help message and exit
   -n, --no-run  do not run the model after downloading
+```
+
+Example:
+
+```
+~ $ cobble TheDrummer/Cydonia-22B-v1 Q5_K_L
+Cydonia-22B-v1-Q5_K_L.gguf: 100%|████████| 14.8G/14.8G [05:02<00:00, 52.4MiB/s]
+Download complete: /home/gnew33/Downloads/Cydonia-22B-v1-Q5_K_L.gguf
+koboldcpp not found. Downloading...
+koboldcpp-linux-x64-cuda1210: 100%|████████| 630M/630M [00:18<00:00, 36.7MiB/s]
+Download complete: /home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210
+Using KoboldCpp at: /home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210
+/home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210 --model /home/gnew33/Downloads/Cydonia-22B-v1-Q5_K_L.gguf 
+***
+Welcome to KoboldCpp - Version 1.75.2
+No GPU or CPU backend was selected. Trying to assign one for you automatically...
+Auto Selected CUDA Backend...
+...
 ```
