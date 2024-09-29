@@ -37,14 +37,14 @@ options:
 Example:
 
 ```
-~ $ cobble TheDrummer/Cydonia-22B-v1 Q5_K_L
-Cydonia-22B-v1-Q5_K_L.gguf: 100%|████████| 14.8G/14.8G [05:02<00:00, 52.4MiB/s]
+~ $ cobble TheDrummer/Cydonia-22B-v1 Q5_K_L --contextsize 12288
+Cydonia-22B-v1-Q5_K_L.gguf: 100%|███████| 14.8G/14.8G [03:48<00:00, 69.2MiB/s]
 Download complete: /home/gnew33/Downloads/Cydonia-22B-v1-Q5_K_L.gguf
 koboldcpp not found. Downloading...
-koboldcpp-linux-x64-cuda1210: 100%|████████| 630M/630M [00:18<00:00, 36.7MiB/s]
+koboldcpp-linux-x64-cuda1210: 100%|███████| 630M/630M [00:07<00:00, 93.8MiB/s]
 Download complete: /home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210
 Using KoboldCpp at: /home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210
-/home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210 --model /home/gnew33/Downloads/Cydonia-22B-v1-Q5_K_L.gguf 
+/home/gnew33/Downloads/koboldcpp-linux-x64-cuda1210 --model /home/gnew33/Downloads/Cydonia-22B-v1-Q5_K_L.gguf --contextsize 12288
 ***
 Welcome to KoboldCpp - Version 1.75.2
 No GPU or CPU backend was selected. Trying to assign one for you automatically...
