@@ -11,10 +11,8 @@ Only Linux is supported, and currently only the CUDA version of KoboldCpp is sup
 ```bash
 git clone https://github.com/gnew33/cobble
 cd cobble
-make
+./install.sh
 ```
-
-The Makefile assumes that `~/.local/bin/` is in your `PATH`. If it is not, change the `LOCAL` variable in the Makefile to `/usr/local`, then run `sudo make`.
 
 ## Usage
 
