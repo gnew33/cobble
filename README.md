@@ -18,20 +18,18 @@ cd cobble
 
 ```
 ~ $ cobble
-error: the following arguments are required: model_path, kobold_args
-
-usage: cobble <model_path> [quant_type] [-n/--no-run] [kobold_args]
+usage: cobble [-h] [-n] model_path [quant_type] ...
 
 Download and optionally run a quantized model.
 
 positional arguments:
-  model_path    the path to the model on Hugging Face, e.g. "meta-llama/Meta-Llama-3-8B"
-  quant_type    (optional) the quantization type, can be any string. Default: Q5_K_M
-  kobold_args   additional arguments to pass to KoboldCpp
+  model_path    (required) The path to the model on Hugging Face, e.g. "meta-llama/Meta-Llama-3-8B"
+  quant_type    (optional) The quantization type, can be any string. Default: Q5_K_M
+  kobold_args   (optional) Additional arguments to pass to KoboldCpp
 
 options:
   -h, --help    show this help message and exit
-  -n, --no-run  do not run the model after downloading
+  -n, --no-run  Do not run the model after downloading
 ```
 
 Example:
