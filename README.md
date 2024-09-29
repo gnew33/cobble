@@ -16,7 +16,7 @@ requests
 beautifulsoup4
 tqdm
 ```
-2.
+2. Clone and run `install.sh`:
 ```bash
 git clone https://github.com/gnew33/cobble
 cd cobble
