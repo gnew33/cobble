@@ -12,7 +12,7 @@ Only Linux is supported, and currently only the CUDA version of KoboldCpp is sup
 
 1. Install the requirements:
 ```
-pip install requests beautifulsoup4 tqdm
+pip install requests beautifulsoup4 tqdm huggingface_hub
 ```
 2. Clone and run `install.sh`:
 ```bash
