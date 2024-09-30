@@ -5,12 +5,15 @@ import os
 import re
 import requests
 import sys
+import glob
 
 from bs4 import BeautifulSoup
 from shutil import which
 from tqdm import tqdm
 from tqdm import tqdm
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote
+
+from huggingface_hub import HfApi
 
 def extract_model_info(model_path):
     if model_path.startswith("https://huggingface.co/"):
@@ -23,20 +26,23 @@ def extract_model_info(model_path):
 
     return author, model
 
-def find_quant_repo(author, model):
+def get_quant_download_link(model_path, quant_type):
+    author, model = extract_model_info(model_path)
+
     model = re.sub(r'-?gguf$', '', model, flags=re.IGNORECASE)
     base_urls = [
         f"https://huggingface.co/bartowski/{model}-GGUF/tree/main",
+        f"https://huggingface.co/QuantFactory/{model}-GGUF/tree/main",
         f"https://huggingface.co/mradermacher/{model}-GGUF/tree/main",
         f"https://huggingface.co/mradermacher/{model}-i1-GGUF/tree/main",
         f"https://huggingface.co/{author}/{model}-GGUF/tree/main",
         f"https://huggingface.co/{author}/{model}-gguf/tree/main",
     ]
-    
+
     for url in base_urls:
-        response = requests.get(url)
+        response = requests.get(url + "?not-for-all-audiences=true")
         if response.status_code == 200:
-            return url
+            repo_files_html = response.text
 
     quants_url = f"https://huggingface.co/models?other=base_model:quantized:{author}%2F{model}&sort=downloads"
     response = requests.get(quants_url)
@@ -44,39 +50,41 @@ def find_quant_repo(author, model):
         soup = BeautifulSoup(response.text, 'html.parser')
         gguf_repo = soup.select_one('a.p-2[href*="gguf" i]')
         if gguf_repo:
-            return urljoin("https://huggingface.co", gguf_repo['href'])
+            url = urljoin("https://huggingface.co", gguf_repo['href'])
+            response = requests.get(url + "?not-for-all-audiences=true")
+            repo_files_html = response.text
+    else:
+        raise Exception(f"No GGUF quants found.")
 
-    raise Exception(f"No GGUF quants found.")
+    soup = BeautifulSoup(repo_files_html, 'html.parser')
+    gguf_row = soup.select_one(f'li.h-10 > div > a[href*="{quant_type}" i]')
 
-def get_quant_download_link(model_path, quant_type):
-    author, model = extract_model_info(model_path)
-    url = find_quant_repo(author, model)
-
-    response = requests.get(url)
-    if response.status_code == 200:
-        pattern = f'href="([^"]*{re.escape(quant_type)}[^"]*)"'
-        match = re.search(pattern, response.text, re.IGNORECASE)
-        if match:
-            quant_url = urljoin(url, match.group(1))
-            if quant_url.lower().endswith(".gguf"):
-                return quant_url.replace("/blob/", "/resolve/")
-            else:
-                raise Exception(f"This quant ({quant_url}) appears to be stored in a separate folder, so it is likely split across several files. good luck")
+    if gguf_row:
+        quant_url = urljoin("https://huggingface.co", gguf_row['href'])
+        if quant_url.lower().endswith(".gguf"):
+            return quant_url.replace("/blob/", "/resolve/")
+        else:
+            raise Exception(f"This quant ({quant_url}) appears to be stored in a separate folder, so it is likely split across several files. good luck")
 
     raise Exception(f"Quant type '{quant_type}' not found in {url}.")
 
-def download_quant(model_path, quant_type):
+def get_quant(model_path, quant_type):
     download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(download_dir, exist_ok=True)
+
+    model_name = os.path.basename(model_path)
+    
+    regex_pattern = re.compile(f"{re.escape(model_name)}.*{re.escape(quant_type)}", re.IGNORECASE)
+    
+    for file in os.listdir(download_dir):
+        if regex_pattern.search(file):
+            print(f"Matching file found: {file}")
+            return os.path.abspath(file)
 
     quant_url = get_quant_download_link(model_path, quant_type)
     file_name = os.path.basename(urlparse(quant_url).path)
     file_path = os.path.join(download_dir, file_name)
 
-    if os.path.exists(file_path):
-        print(f"File already exists: {file_path}")
-        return os.path.abspath(file_path)
-    
     download_file(quant_url, file_path)
 
     return os.path.abspath(file_path)
@@ -110,44 +118,162 @@ def download_file(url: str, file_path: str = None) -> str:
 
     return file_path
 
+def run_command(args):
+    model_path = get_quant(args.model_path, args.quant_type)
+    download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+
+    kobold_path = next((exe for exe in os.get_exec_path() if exe.startswith("koboldcpp")), None)
+    if not kobold_path:
+        kobold_path = next((os.path.join(download_dir, f) for f in os.listdir(download_dir) if f.startswith("koboldcpp")), None)
+
+    if not kobold_path:
+        print("koboldcpp not found. Downloading...")
+        kobold_path = download_file("https://github.com/LostRuins/koboldcpp/releases/latest/download/koboldcpp-linux-x64-cuda1210")
+
+    if not os.access(kobold_path, os.X_OK):
+        os.chmod(kobold_path, os.stat(kobold_path).st_mode | 0o111)
+
+    print(f"Using KoboldCpp at: {kobold_path}")
+
+    kobold_args = ' '.join(args.kobold_args) if args.kobold_args else ''
+    kobold_cmd = f"{kobold_path} --model {model_path} {kobold_args}"
+    print(f"{kobold_cmd}")
+
+    os.system(kobold_cmd)
+
+def get_command(args):
+    get_quant(args.model_path, args.quant_type)
+
+def list_command(args):
+    download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+    gguf_files = [f for f in os.listdir(download_dir) if f.lower().endswith('.gguf')]
+    
+    if gguf_files:
+        for file in gguf_files:
+            print(file)
+    else:
+        print("No GGUF files found in Downloads directory.")
+
+def format_params(params: int) -> str:
+    if params >= 1_000_000_000_000:
+        return f"{params / 1_000_000_000_000:.1f}T"
+    elif params >= 1_000_000_000:
+        return f"{params / 1_000_000_000:.1f}B"
+    elif params >= 1_000_000:
+        return f"{params / 1_000_000:.1f}M"
+
+    return f"{params}"
+
+def search_models(query):
+    return HfApi().list_models(search=query, sort="likes7d", limit=25, expand=["safetensors", "downloads", "likes"])
+
+def search_command(args):
+    output = ""
+    query = " ".join(args.query)
+    models = search_models(query)
+
+    if models:
+        # Print header in bold and underlined
+        bold_underline = "\033[1m\033[4m"
+        reset = "\033[0m"
+        output += f"{bold_underline}{'Model':<50} {'Parameters':<15} {'Downloads 📥':<15}{'Likes ❤️':<10}{reset}\n"
+        
+        # Print results
+        for model in models:
+            if model.safetensors:
+                params = format_params(model.safetensors.total)
+            else:
+                params = "-"
+            url = f"https://huggingface.co/{model.id}"
+            model_id = model.id[:47] + "..." if len(model.id) > 50 else model.id
+            clickable_name = f"\033]8;;{url}\033\\{model_id}\033]8;;\033\\"
+            padding = " " * (50 - len(model_id))
+            output += f"{clickable_name}{padding} {params:<15} {model.downloads:<15} {model.likes:<10}\n"
+        
+        print(output)
+
+        return models
+    else:
+        print("No results found.")
+
+def delete_command(args):
+    download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+    model_name = os.path.basename(args.model_path)
+    
+    if args.quant_type:
+        regex_pattern = re.compile(f"{re.escape(model_name)}.*{re.escape(args.quant_type)}", re.IGNORECASE)
+    else:
+        regex_pattern = re.compile(f"{re.escape(model_name)}", re.IGNORECASE)
+    
+    deleted_files = []
+    for file in os.listdir(download_dir):
+        if regex_pattern.search(file) and file.lower().endswith('.gguf'):
+            file_path = os.path.join(download_dir, file)
+            try:
+                os.remove(file_path)
+                deleted_files.append(file)
+            except OSError as e:
+                print(f"Error deleting {file}: {e}")
+    
+    if deleted_files:
+        print(f"Deleted the following files:")
+        for file in deleted_files:
+            print(f"- {file}")
+    else:
+        print("No matching files found to delete.")
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Download and optionally run a quantized model.",
-    )
-    parser.add_argument("model_path", help="(required) The path to the model on Hugging Face, e.g. \"meta-llama/Meta-Llama-3-8B\"")
-    parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="(optional) The quantization type, can be any string. Default: Q5_K_M")
-    parser.add_argument("-n", "--no-run", action="store_false", dest="run", help="Do not run the model after downloading")
-    parser.add_argument("kobold_args", nargs=argparse.REMAINDER, help="(optional) Additional arguments to pass to KoboldCpp")
+    parser = argparse.ArgumentParser(description="Cobble: Download and run quantized models.")
+    subparsers = parser.add_subparsers(dest='command', required=True)
+
+    # Run subcommand
+    run_parser = subparsers.add_parser('run', help='Download (if necessary) and run a model')
+    run_parser.add_argument("model_path", help="The path to the model on Hugging Face, e.g. \"meta-llama/Meta-Llama-3-8B\"")
+    run_parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="The quantization type. Default: Q5_K_M")
+    run_parser.add_argument("kobold_args", nargs=argparse.REMAINDER, help="Additional arguments to pass to KoboldCpp")
+    run_parser.set_defaults(func=run_command)
+
+    # Get subcommand
+    get_parser = subparsers.add_parser('get', help='Download a model without running it')
+    get_parser.add_argument("model_path", help="The path to the model on Hugging Face")
+    get_parser.add_argument("quant_type", nargs="?", default="Q5_K_M", help="The quantization type. Default: Q5_K_M")
+    get_parser.set_defaults(func=get_command)
+
+    # List subcommand
+    list_parser = subparsers.add_parser('list', help='List all GGUF files in Downloads')
+    list_parser.set_defaults(func=list_command)
+
+    # Search subcommand
+    search_parser = subparsers.add_parser('search', help='Search for models on Hugging Face')
+    search_parser.add_argument("query", nargs='+', help="The search query (can be multiple words)")
+    search_parser.set_defaults(func=search_command)
+
+    delete_parser = subparsers.add_parser('delete', help='Delete quants matching the model name')
+    delete_parser.add_argument("model_path", help="The path to the model on Hugging Face")
+    delete_parser.add_argument("quant_type", nargs="?", help="The quantization type (optional)")
+    delete_parser.set_defaults(func=delete_command)
 
     if len(sys.argv) == 1:
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
     args = parser.parse_args()
 
-    model_path = download_quant(args.model_path, args.quant_type)
-
-    if args.run:
-        download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-
-        kobold_path = next((exe for exe in os.get_exec_path() if exe.startswith("koboldcpp")), None)
-        if not kobold_path:
-            kobold_path = next((os.path.join(download_dir, f) for f in os.listdir(download_dir) if f.startswith("koboldcpp")), None)
-
-        if not kobold_path:
-            print("koboldcpp not found. Downloading...")
-            kobold_path = download_file("https://github.com/LostRuins/koboldcpp/releases/latest/download/koboldcpp-linux-x64-cuda1210")
-
-        if not os.access(kobold_path, os.X_OK):
-            os.chmod(kobold_path, os.stat(kobold_path).st_mode | 0o111)
-
-        print(f"Using KoboldCpp at: {kobold_path}")
-
-        kobold_args = ' '.join(args.kobold_args) if args.kobold_args else ''
-        kobold_cmd = f"{kobold_path} --model {model_path} {kobold_args}"
-        print(f"{kobold_cmd}")
-
-        os.system(kobold_cmd)
+    # Check if the subcommand is provided without any arguments
+    if args.command == 'run' and args.model_path is None:
+        run_parser.print_help()
+        sys.exit(1)
+    elif args.command == 'get' and args.model_path is None:
+        get_parser.print_help()
+        sys.exit(1)
+    elif args.command == 'search' and not args.query:
+        search_parser.print_help()
+        sys.exit(1)
+    elif args.command == 'delete' and args.model_path is None:
+        delete_parser.print_help()
+        sys.exit(1)
+    else:
+        args.func(args)
 
 if __name__ == "__main__":
     main()
