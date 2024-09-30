@@ -44,17 +44,17 @@ def get_quant_download_link(model_path, quant_type):
         if response.status_code == 200:
             repo_files_html = response.text
 
-    quants_url = f"https://huggingface.co/models?other=base_model:quantized:{author}%2F{model}&sort=downloads"
-    response = requests.get(quants_url)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        gguf_repo = soup.select_one('a.p-2[href*="gguf" i]')
-        if gguf_repo:
-            url = urljoin("https://huggingface.co", gguf_repo['href'])
-            response = requests.get(url + "?not-for-all-audiences=true")
-            repo_files_html = response.text
-    else:
-        raise Exception(f"No GGUF quants found.")
+    if not repo_files_html:
+        response = requests.get(f"https://huggingface.co/models?other=base_model:quantized:{author}%2F{model}&sort=downloads")
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            gguf_repo = soup.select_one('a.p-2[href*="gguf" i]')
+            if gguf_repo:
+                url = urljoin("https://huggingface.co", gguf_repo['href'])
+                response = requests.get(url + "?not-for-all-audiences=true")
+                repo_files_html = response.text
+        else:
+            raise Exception(f"No GGUF quants found.")
 
     soup = BeautifulSoup(repo_files_html, 'html.parser')
     gguf_row = soup.select_one(f'li.h-10 > div > a[href*="{quant_type}" i]')
