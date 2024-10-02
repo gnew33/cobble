@@ -5,11 +5,9 @@ import os
 import re
 import requests
 import sys
-import glob
 
 from bs4 import BeautifulSoup
 from shutil import which
-from tqdm import tqdm
 from tqdm import tqdm
 from urllib.parse import urljoin, urlparse, quote
 
