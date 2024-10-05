@@ -41,6 +41,7 @@ def get_quant_download_link(model_path, quant_type):
         response = requests.get(url + "?not-for-all-audiences=true")
         if response.status_code == 200:
             repo_files_html = response.text
+            break
 
     if not repo_files_html:
         response = requests.get(f"https://huggingface.co/models?other=base_model:quantized:{author}%2F{model}&sort=downloads")
@@ -70,13 +71,14 @@ def get_quant(model_path, quant_type):
     download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(download_dir, exist_ok=True)
 
-    model_name = os.path.basename(model_path)
+    model_name = os.path.basename(model_path).strip(".gguf")
     
     regex_pattern = re.compile(f"{re.escape(model_name)}.*{re.escape(quant_type)}", re.IGNORECASE)
-    
     for file in os.listdir(download_dir):
-        if regex_pattern.search(file):
-            return os.path.join(download_dir, file)
+        if regex_pattern.search(file) or model_name == file.strip(".gguf"):
+            full_path = os.path.join(download_dir, file)
+            print(f"Using quant at {full_path}")
+            return full_path
 
     quant_url = get_quant_download_link(model_path, quant_type)
     file_name = os.path.basename(urlparse(quant_url).path)
@@ -130,10 +132,10 @@ def run_command(args):
     if not os.access(kobold_path, os.X_OK):
         os.chmod(kobold_path, os.stat(kobold_path).st_mode | 0o111)
 
-    print(f"Using KoboldCpp at: {kobold_path}")
+    print(f"Using KoboldCpp at {kobold_path}")
 
     kobold_args = ' '.join(args.kobold_args) if args.kobold_args else ''
-    kobold_cmd = f"{kobold_path} --model {model_filepath} {kobold_args}"
+    kobold_cmd = f"{kobold_path} --model {model_filepath} {kobold_args} --nommap"
     print(f"{kobold_cmd}")
 
     os.system(kobold_cmd)
