@@ -27,6 +27,8 @@ def extract_model_info(model_path):
 def get_quant_download_link(model_path, quant_type):
     author, model = extract_model_info(model_path)
 
+    repo_files_html = None
+
     model = re.sub(r'-?gguf$', '', model, flags=re.IGNORECASE)
     base_urls = [
         f"https://huggingface.co/bartowski/{model}-GGUF/tree/main",
@@ -43,13 +45,13 @@ def get_quant_download_link(model_path, quant_type):
             repo_files_html = response.text
             break
 
-    if not repo_files_html:
+    if repo_files_html is None:
         response = requests.get(f"https://huggingface.co/models?other=base_model:quantized:{author}%2F{model}&sort=downloads")
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             gguf_repo = soup.select_one('a.p-2[href*="gguf" i]')
             if gguf_repo:
-                url = urljoin("https://huggingface.co", gguf_repo['href'])
+                url = urljoin("https://huggingface.co", gguf_repo['href']) + "/tree/main"
                 response = requests.get(url + "?not-for-all-audiences=true")
                 repo_files_html = response.text
         else:
